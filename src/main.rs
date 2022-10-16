@@ -1,24 +1,33 @@
-use instruction::Instruction;
-use uvm::UVM;
-
 mod global;
 mod instruction;
 mod trap;
 mod uvm;
 
+use instruction::{Instruction, InstructionType};
+use uvm::UVM;
+
 fn main() {
-    let mut vm = UVM::new(1024);
-    let program = vec![
-        Instruction::push(Some(1)),
-        Instruction::push(Some(2)),
-        Instruction::push(Some(3)),
-        Instruction::plus(),
+    let mut program = vec![
+        Instruction::new(InstructionType::Push, Some(20)),
+        Instruction::new(InstructionType::Push, Some(20)),
+        Instruction::new(InstructionType::Plus, None),
+        Instruction::new(InstructionType::Push, Some(10)),
+        Instruction::new(InstructionType::Minus, None),
+        Instruction::new(InstructionType::Push, Some(2)),
+        Instruction::new(InstructionType::Mult, None),
+        Instruction::new(InstructionType::Jump, Some(10)),
+        Instruction::new(InstructionType::Push, Some(0)),
+        Instruction::new(InstructionType::Division, None),
+        Instruction::new(InstructionType::Hult, None),
     ];
-    for instr in program {
-        if let Some(trap) = vm.execute_instruction(instr) {
-            eprintln!("Got Traped: {:#?}", trap);
+
+    let mut vm = UVM::new();
+    vm.load_program_from_memory(&mut program);
+    while !vm.halt {
+        if let Some(trap) = vm.execute_instruction() {
+            println!("TRAP: {:#?}", trap);
             std::process::exit(1);
         }
-        vm.dump();
+        vm.dump_stack();
     }
 }

@@ -5,4 +5,10 @@
 - **Can Execute:**
 
   - push
-  - pop
+  - jump
+  - hult
+
+  - plus
+  - minus
+  - multiplication
+  - division
