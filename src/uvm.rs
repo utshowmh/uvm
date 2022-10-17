@@ -50,7 +50,10 @@ impl UVM {
             let instruction: Vec<&str> = instruction.split(" ").collect();
             match instruction.len() {
                 1 => {
-                    let instruction_type: u8 = instruction[0].trim().parse().unwrap();
+                    let instruction_type: u8 = match instruction[0].trim().parse() {
+                        Ok(instruction_type) => instruction_type,
+                        Err(_) => return Some(Trap::IllegalOperation),
+                    };
                     match instruction_type {
                         InstructionAsByte::Add => self
                             .program
@@ -70,6 +73,9 @@ impl UVM {
                         InstructionAsByte::Dump => self
                             .program
                             .push(Instruction::new(InstructionType::Dump, None)),
+                        InstructionAsByte::Pop => self
+                            .program
+                            .push(Instruction::new(InstructionType::Pop, None)),
                         InstructionAsByte::Hult => self
                             .program
                             .push(Instruction::new(InstructionType::Hult, None)),
@@ -126,6 +132,15 @@ impl UVM {
                 } else {
                     return Some(Trap::IllegalOperand);
                 }
+            }
+            InstructionType::Pop => {
+                self.instruction_pointer += 1;
+
+                if self.stack.len() < 1 {
+                    return Some(Trap::StackUnderflow);
+                }
+
+                self.stack.pop();
             }
             InstructionType::Duplicate => {
                 self.instruction_pointer += 1;
@@ -217,9 +232,10 @@ impl UVM {
                     return Some(Trap::StackUnderflow);
                 }
 
-                let a = self.stack.pop().unwrap() != 0;
+                let a = self.stack.pop().unwrap();
+                self.stack.push(a);
                 if let Some(jump_to) = instruction.operand {
-                    if a {
+                    if a != 0 {
                         self.instruction_pointer = jump_to as usize;
                     }
                 } else {
@@ -235,6 +251,7 @@ impl UVM {
 
                 let a = self.stack.pop().unwrap();
                 println!("{}", a);
+                self.stack.push(a);
             }
             InstructionType::Hult => {
                 self.halt = true;

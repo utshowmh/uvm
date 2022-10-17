@@ -1,15 +1,18 @@
-# UVM (Utsho's Virtual Machine)
+# UVM
 
-## UVM (Utsho's Virtual Machine) is a Virtual Machine written in Rust.
+</br>
+
+## UVM (Utsho's Virtual Machine) is a Virtual Machine written in Rust
+
+</br>
 
 **Building UVM:**
 
-```
-apt install git
-apt install rust
-git clone https://github.com/utshowmh/uvm.git.
-cd uvm
-cargo build --release
-```
+- Run these command on your shell
+  - `apt install git`
+  - `apt install rust`
+  - `git clone <https://github.com/utshowmh/uvm.git`
+  - `cd uvm`
+  - `cargo build --release`
 
-After running those script, you should have an executable named 'uvm' in '/target/build/'.
+- After running those script, you should have an executable named 'uvm' in '/target/build/'.
