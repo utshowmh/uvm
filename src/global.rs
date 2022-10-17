@@ -1,1 +1,1 @@
-pub type Word = i64;
+pub type Integer = i64;

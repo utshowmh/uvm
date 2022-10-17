@@ -1,14 +1,16 @@
+use std::fs::read_to_string;
+
 use crate::{
-    global::Word,
-    instruction::{Instruction, InstructionType},
+    global::Integer,
+    instruction::{Instruction, InstructionAsByte, InstructionType},
     trap::Trap,
 };
 
 pub struct UVM {
-    stack: Vec<Word>,
+    stack: Vec<Integer>,
     program: Vec<Instruction>,
-    pub ip: usize,
-    pub halt: bool,
+    instruction_pointer: usize,
+    halt: bool,
 }
 
 impl UVM {
@@ -16,34 +18,133 @@ impl UVM {
         Self {
             stack: Vec::new(),
             program: Vec::new(),
-            ip: 0,
+            instruction_pointer: 0,
             halt: false,
         }
     }
 
-    pub fn dump_stack(&self) {
-        println!("stack: {:?}", self.stack);
+    pub fn run(&mut self, filepath: &str) {
+        if let Some(trap) = self.load_program_from_file(filepath) {
+            eprintln!("Trap: {:#?}", trap);
+            std::process::exit(1);
+        };
+        while !self.halt {
+            if let Some(trap) = self.execute_instruction() {
+                eprintln!("Trap: {:#?}", trap);
+                std::process::exit(1);
+            };
+        }
     }
 
-    pub fn load_program_from_memory(&mut self, program: &mut Vec<Instruction>) {
-        self.program.append(program);
+    fn load_program_from_file(&mut self, filepath: &str) -> Option<Trap> {
+        let instructions = match read_to_string(filepath) {
+            Ok(instruction_bytes) => instruction_bytes,
+            Err(err) => {
+                eprintln!("Error: {:#?}", err);
+                std::process::exit(1);
+            }
+        };
+        let instructions = instructions.split("\n");
+
+        for instruction in instructions {
+            let instruction: Vec<&str> = instruction.split(" ").collect();
+            match instruction.len() {
+                1 => {
+                    let instruction_type: u8 = instruction[0].trim().parse().unwrap();
+                    match instruction_type {
+                        InstructionAsByte::Add => self
+                            .program
+                            .push(Instruction::new(InstructionType::Add, None)),
+                        InstructionAsByte::Subtract => self
+                            .program
+                            .push(Instruction::new(InstructionType::Subtract, None)),
+                        InstructionAsByte::Multipy => self
+                            .program
+                            .push(Instruction::new(InstructionType::Multipy, None)),
+                        InstructionAsByte::Divide => self
+                            .program
+                            .push(Instruction::new(InstructionType::Divide, None)),
+                        InstructionAsByte::Equal => self
+                            .program
+                            .push(Instruction::new(InstructionType::Equal, None)),
+                        InstructionAsByte::Dump => self
+                            .program
+                            .push(Instruction::new(InstructionType::Dump, None)),
+                        InstructionAsByte::Hult => self
+                            .program
+                            .push(Instruction::new(InstructionType::Hult, None)),
+                        _ => {
+                            return Some(Trap::IllegalOperation);
+                        }
+                    }
+                }
+                2 => {
+                    let instruction_type: u8 = instruction[0].trim().parse().unwrap();
+                    let operand: i64 = match instruction[1].trim().parse() {
+                        Ok(operand) => operand,
+                        Err(_) => return Some(Trap::IllegalOperand),
+                    };
+                    match instruction_type {
+                        InstructionAsByte::Push => self
+                            .program
+                            .push(Instruction::new(InstructionType::Push, Some(operand))),
+                        InstructionAsByte::Duplicate => self
+                            .program
+                            .push(Instruction::new(InstructionType::Duplicate, Some(operand))),
+                        InstructionAsByte::Jump => self
+                            .program
+                            .push(Instruction::new(InstructionType::Jump, Some(operand))),
+                        InstructionAsByte::JumpIf => self
+                            .program
+                            .push(Instruction::new(InstructionType::JumpIf, Some(operand))),
+                        _ => {
+                            return Some(Trap::IllegalOperation);
+                        }
+                    }
+                }
+                _ => {
+                    return Some(Trap::IllegalOperation);
+                }
+            }
+        }
+        None
     }
 
-    pub fn execute_instruction(&mut self) -> Option<Trap> {
-        if self.ip >= self.program.len() {
+    fn execute_instruction(&mut self) -> Option<Trap> {
+        if self.instruction_pointer >= self.program.len() {
             return Some(Trap::InvalidInstructionPointer);
         }
 
-        let instruction = &self.program[self.ip];
+        let instruction = &self.program[self.instruction_pointer];
 
         match instruction.instruction_type {
             InstructionType::Push => {
-                self.ip += 1;
+                self.instruction_pointer += 1;
 
-                self.stack.push(instruction.operand.unwrap());
+                if let Some(value) = instruction.operand {
+                    self.stack.push(value);
+                } else {
+                    return Some(Trap::IllegalOperand);
+                }
             }
-            InstructionType::Plus => {
-                self.ip += 1;
+            InstructionType::Duplicate => {
+                self.instruction_pointer += 1;
+
+                if let Some(instruction_pointer) = instruction.operand {
+                    let stack_length = self.stack.len() as i64;
+                    if stack_length - instruction_pointer < 1 {
+                        return Some(Trap::StackUnderflow);
+                    }
+                    if instruction_pointer < 0 {
+                        return Some(Trap::IllegalOperand);
+                    } else {
+                        self.stack
+                            .push(self.stack[(stack_length - 1 - instruction_pointer) as usize]);
+                    }
+                }
+            }
+            InstructionType::Add => {
+                self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
                     return Some(Trap::StackUnderflow);
@@ -53,8 +154,8 @@ impl UVM {
                 let a = self.stack.pop().unwrap();
                 self.stack.push(a + b);
             }
-            InstructionType::Minus => {
-                self.ip += 1;
+            InstructionType::Subtract => {
+                self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
                     return Some(Trap::StackUnderflow);
@@ -64,8 +165,8 @@ impl UVM {
                 let a = self.stack.pop().unwrap();
                 self.stack.push(a - b);
             }
-            InstructionType::Mult => {
-                self.ip += 1;
+            InstructionType::Multipy => {
+                self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
                     return Some(Trap::StackUnderflow);
@@ -75,8 +176,8 @@ impl UVM {
                 let a = self.stack.pop().unwrap();
                 self.stack.push(a * b);
             }
-            InstructionType::Division => {
-                self.ip += 1;
+            InstructionType::Divide => {
+                self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
                     return Some(Trap::StackUnderflow);
@@ -91,10 +192,49 @@ impl UVM {
 
                 self.stack.push(a / b);
             }
+            InstructionType::Equal => {
+                self.instruction_pointer += 1;
+
+                if self.stack.len() < 2 {
+                    return Some(Trap::StackUnderflow);
+                }
+
+                let b = self.stack.pop().unwrap();
+                let a = self.stack.pop().unwrap();
+                self.stack.push((a == b) as i64);
+            }
             InstructionType::Jump => {
                 if let Some(jump_to) = instruction.operand {
-                    self.ip = jump_to as usize;
+                    self.instruction_pointer = jump_to as usize;
+                } else {
+                    return Some(Trap::IllegalOperand);
                 }
+            }
+            InstructionType::JumpIf => {
+                self.instruction_pointer += 1;
+
+                if self.stack.len() < 1 {
+                    return Some(Trap::StackUnderflow);
+                }
+
+                let a = self.stack.pop().unwrap() != 0;
+                if let Some(jump_to) = instruction.operand {
+                    if a {
+                        self.instruction_pointer = jump_to as usize;
+                    }
+                } else {
+                    return Some(Trap::IllegalOperand);
+                }
+            }
+            InstructionType::Dump => {
+                self.instruction_pointer += 1;
+
+                if self.stack.len() < 1 {
+                    return Some(Trap::StackUnderflow);
+                }
+
+                let a = self.stack.pop().unwrap();
+                println!("{}", a);
             }
             InstructionType::Hult => {
                 self.halt = true;
