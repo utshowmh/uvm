@@ -13,11 +13,12 @@ fn main() {
         let mut vm = UVM::new();
         vm.run(&args[1]);
     } else {
-        println!(
+        eprintln!(
             "
 Program: UVM
 
-Usage:   <filepath>     executes the (given) file.
+Usage:
+    <source_path>: executes the (given) file.
         "
         );
     }

@@ -44,7 +44,7 @@ impl UVM {
                 std::process::exit(1);
             }
         };
-        let instructions = instructions.split("\n");
+        let instructions = instructions.trim().split("\n");
 
         for instruction in instructions {
             let instruction: Vec<&str> = instruction.split(" ").collect();
