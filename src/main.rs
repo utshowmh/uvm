@@ -1,9 +1,9 @@
+mod error;
 mod global;
 mod instruction;
-mod trap;
 mod uvm;
 
-use std::env::args;
+use std::{env::args, process::exit};
 
 use uvm::UVM;
 
@@ -21,5 +21,6 @@ Usage:
     <source_path>: executes the (given) file.
         "
         );
+        exit(1);
     }
 }

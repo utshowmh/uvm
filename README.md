@@ -11,7 +11,7 @@
 - Run these command on your shell
   - `apt install git`
   - `apt install rust`
-  - `git clone <https://github.com/utshowmh/uvm.git`
+  - `git clone https://github.com/utshowmh/uvm.git`
   - `cd uvm`
   - `cargo build --release`
 

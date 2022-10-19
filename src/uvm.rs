@@ -1,9 +1,9 @@
-use std::fs::read_to_string;
+use std::{fs::read_to_string, process::exit};
 
 use crate::{
+    error::UVMError,
     global::Integer,
     instruction::{Instruction, InstructionAsByte, InstructionType},
-    trap::Trap,
 };
 
 pub struct UVM {
@@ -24,24 +24,24 @@ impl UVM {
     }
 
     pub fn run(&mut self, filepath: &str) {
-        if let Some(trap) = self.load_program_from_file(filepath) {
-            eprintln!("Trap: {:#?}", trap);
+        if let Some(err) = self.load_program_from_file(filepath) {
+            eprintln!("UVMError: {:#?}", err);
             std::process::exit(1);
         };
         while !self.halt {
-            if let Some(trap) = self.execute_instruction() {
-                eprintln!("Trap: {:#?}", trap);
-                std::process::exit(1);
+            if let Some(err) = self.execute_instruction() {
+                eprintln!("UVMError: {:#?}", err);
+                exit(1);
             };
         }
     }
 
-    fn load_program_from_file(&mut self, filepath: &str) -> Option<Trap> {
+    fn load_program_from_file(&mut self, filepath: &str) -> Option<UVMError> {
         let instructions = match read_to_string(filepath) {
             Ok(instruction_bytes) => instruction_bytes,
             Err(err) => {
-                eprintln!("Error: {:#?}", err);
-                std::process::exit(1);
+                eprintln!("UVMError: {:#?}", err);
+                exit(1);
             }
         };
         let instructions = instructions.trim().split("\n");
@@ -52,7 +52,7 @@ impl UVM {
                 1 => {
                     let instruction_type: u8 = match instruction[0].trim().parse() {
                         Ok(instruction_type) => instruction_type,
-                        Err(_) => return Some(Trap::IllegalOperation),
+                        Err(_) => return Some(UVMError::IllegalOperation),
                     };
                     match instruction_type {
                         InstructionAsByte::Add => self
@@ -76,19 +76,22 @@ impl UVM {
                         InstructionAsByte::Pop => self
                             .program
                             .push(Instruction::new(InstructionType::Pop, None)),
-                        InstructionAsByte::Hult => self
+                        InstructionAsByte::Halt => self
                             .program
-                            .push(Instruction::new(InstructionType::Hult, None)),
+                            .push(Instruction::new(InstructionType::Halt, None)),
                         _ => {
-                            return Some(Trap::IllegalOperation);
+                            return Some(UVMError::IllegalOperation);
                         }
                     }
                 }
                 2 => {
-                    let instruction_type: u8 = instruction[0].trim().parse().unwrap();
+                    let instruction_type: u8 = match instruction[0].trim().parse() {
+                        Ok(instruction_type) => instruction_type,
+                        Err(_) => return Some(UVMError::IllegalOperation),
+                    };
                     let operand: i64 = match instruction[1].trim().parse() {
                         Ok(operand) => operand,
-                        Err(_) => return Some(Trap::IllegalOperand),
+                        Err(_) => return Some(UVMError::IllegalOperand),
                     };
                     match instruction_type {
                         InstructionAsByte::Push => self
@@ -104,21 +107,21 @@ impl UVM {
                             .program
                             .push(Instruction::new(InstructionType::JumpIf, Some(operand))),
                         _ => {
-                            return Some(Trap::IllegalOperation);
+                            return Some(UVMError::IllegalOperation);
                         }
                     }
                 }
                 _ => {
-                    return Some(Trap::IllegalOperation);
+                    return Some(UVMError::IllegalOperation);
                 }
             }
         }
         None
     }
 
-    fn execute_instruction(&mut self) -> Option<Trap> {
+    fn execute_instruction(&mut self) -> Option<UVMError> {
         if self.instruction_pointer >= self.program.len() {
-            return Some(Trap::InvalidInstructionPointer);
+            return Some(UVMError::InvalidInstructionPointer);
         }
 
         let instruction = &self.program[self.instruction_pointer];
@@ -130,14 +133,14 @@ impl UVM {
                 if let Some(value) = instruction.operand {
                     self.stack.push(value);
                 } else {
-                    return Some(Trap::IllegalOperand);
+                    return Some(UVMError::IllegalOperand);
                 }
             }
             InstructionType::Pop => {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 1 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 self.stack.pop();
@@ -148,10 +151,10 @@ impl UVM {
                 if let Some(instruction_pointer) = instruction.operand {
                     let stack_length = self.stack.len() as i64;
                     if stack_length - instruction_pointer < 1 {
-                        return Some(Trap::StackUnderflow);
+                        return Some(UVMError::StackUnderflow);
                     }
                     if instruction_pointer < 0 {
-                        return Some(Trap::IllegalOperand);
+                        return Some(UVMError::IllegalOperand);
                     } else {
                         self.stack
                             .push(self.stack[(stack_length - 1 - instruction_pointer) as usize]);
@@ -162,7 +165,7 @@ impl UVM {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let b = self.stack.pop().unwrap();
@@ -173,7 +176,7 @@ impl UVM {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let b = self.stack.pop().unwrap();
@@ -184,7 +187,7 @@ impl UVM {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let b = self.stack.pop().unwrap();
@@ -195,14 +198,14 @@ impl UVM {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let b = self.stack.pop().unwrap();
                 let a = self.stack.pop().unwrap();
 
                 if b == 0 {
-                    return Some(Trap::DivisionByZero);
+                    return Some(UVMError::DivisionByZero);
                 }
 
                 self.stack.push(a / b);
@@ -211,7 +214,7 @@ impl UVM {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 2 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let b = self.stack.pop().unwrap();
@@ -222,14 +225,14 @@ impl UVM {
                 if let Some(jump_to) = instruction.operand {
                     self.instruction_pointer = jump_to as usize;
                 } else {
-                    return Some(Trap::IllegalOperand);
+                    return Some(UVMError::IllegalOperand);
                 }
             }
             InstructionType::JumpIf => {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 1 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let a = self.stack.pop().unwrap();
@@ -239,21 +242,21 @@ impl UVM {
                         self.instruction_pointer = jump_to as usize;
                     }
                 } else {
-                    return Some(Trap::IllegalOperand);
+                    return Some(UVMError::IllegalOperand);
                 }
             }
             InstructionType::Dump => {
                 self.instruction_pointer += 1;
 
                 if self.stack.len() < 1 {
-                    return Some(Trap::StackUnderflow);
+                    return Some(UVMError::StackUnderflow);
                 }
 
                 let a = self.stack.pop().unwrap();
                 println!("{}", a);
                 self.stack.push(a);
             }
-            InstructionType::Hult => {
+            InstructionType::Halt => {
                 self.halt = true;
             }
         }

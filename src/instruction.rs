@@ -13,7 +13,7 @@ pub mod InstructionAsByte {
     pub const Multipy: u8 = 8;
     pub const Divide: u8 = 9;
     pub const Dump: u8 = 10;
-    pub const Hult: u8 = 11;
+    pub const Halt: u8 = 11;
 }
 
 pub enum InstructionType {
@@ -29,7 +29,7 @@ pub enum InstructionType {
     Multipy,
     Divide,
     Dump,
-    Hult,
+    Halt,
 }
 
 pub struct Instruction {
