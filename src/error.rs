@@ -1,8 +1,14 @@
 #[derive(Debug)]
-pub enum UVMError {
+pub enum LexingError {
+    IllegalOperation,
+    IllegalOperand,
+    IllegalLabel,
+}
+
+#[derive(Debug)]
+pub enum ParsingError {
     StackUnderflow,
     DivisionByZero,
     InvalidInstructionPointer,
-    IllegalOperation,
     IllegalOperand,
 }

@@ -28,5 +28,6 @@
   - minus (operation code: 7)
   - multiplication (operation code: 8)
   - division (operation code: 9)
-  - dump (operation code: 10)
-  - hult (operation code: 11)
+  - print (operation code: 10)
+  - halt (operation code: 11)
+  - and 'label: for defining label
